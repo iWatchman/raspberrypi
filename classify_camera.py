@@ -111,8 +111,7 @@ def run_classification(labels):
         '''
         print("Starting Camera...")
         camera.start_recording(
-            ring_buffer, format=CAM_FORMAT, bitrate=CAM_BITRATE,
-            intra_period=CAM_FRAMERATE)
+            ring_buffer, format=CAM_FORMAT)
         try:
             while True:
                 print('Waiting for violence')

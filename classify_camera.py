@@ -109,6 +109,7 @@ def run_classification(labels):
                 # wait recording, analyse gets called on each frame
                 while violence_detector.detected < time.time() - 1:
                     camera.wait_recording(1)
+                    print(violence_detector.prediction)
 
                 # Violence Detected Mode
                 print('Violence detected, recording to %s' % file_output.name)
@@ -139,6 +140,9 @@ def run_classification(labels):
                 file_output.close()
                 file_output = io.open(
                     FILE_PATTERN % file_number, 'wb', buffering=FILE_BUFFER)
+        except KeyboardInterrupt:
+            print('Keyboard Interrypt')
+            exit()
 
         finally:
             camera.stop_recording()

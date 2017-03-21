@@ -43,20 +43,21 @@ class ViolenceDetector(picamera.array.PiRGBAnalysis):
         # Make the prediction. Big thanks to this SO answer:
         # http://stackoverflow.com/questions/34484148/feeding-image-data-in-tensorflow-for-transfer-learning
         start = time.time()
-        predictions = sess.run(self.softmax_tensor, {'DecodeJpeg:0': img})
-        prediction = predictions[0]
+        with tf.Session() as sess:
+            predictions = sess.run(self.softmax_tensor, {'DecodeJpeg:0': img})
+            prediction = predictions[0]
 
-        # Get the highest confidence category.
-        prediction = prediction.tolist()
-        max_value = max(prediction)
-        max_index = prediction.index(max_value)
-        predicted_label = self.labels[max_index]
+            # Get the highest confidence category.
+            prediction = prediction.tolist()
+            max_value = max(prediction)
+            max_index = prediction.index(max_value)
+            predicted_label = self.labels[max_index]
 
-        end = time.time()
-        self.process_time = end-start
-        self.prediction = ("%s (%.2f%%) t:%.2f sec" % (predicted_label, max_value * 100, self.process_time))
-        if predicted_label == 'violence':
-            self.detected = time.time()
+            end = time.time()
+            self.process_time = end-start
+            self.prediction = ("%s (%.2f%%) t:%.2f sec" % (predicted_label, max_value * 100, self.process_time))
+            if predicted_label == 'violence':
+                self.detected = time.time()
 
 
 def get_labels():

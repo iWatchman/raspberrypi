@@ -23,7 +23,7 @@ class ViolenceDetector(picamera.array.PiRGBAnalysis):
         super(ViolenceDetector, self).__init__(camera, size)
         self.detected = 0
 
-    def initializeTF(labels):
+    def initializeTF(self, labels):
         self.labels = labels
         with tf.gfile.FastGFile("./train/retrained_graph.pb", 'rb') as f:
             self.graph_def = tf.GraphDef()

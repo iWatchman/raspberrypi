@@ -22,6 +22,7 @@ class ViolenceDetector(picamera.array.PiRGBAnalysis):
     def __init__(self, camera, size=None):
         super(ViolenceDetector, self).__init__(camera, size)
         self.detected = 0
+        self.prediction = ''
 
     def initializeTF(self, labels):
         self.labels = labels
@@ -37,22 +38,10 @@ class ViolenceDetector(picamera.array.PiRGBAnalysis):
         # Encoder callback that completes frame analysis.
         # This must complete before next frame is pulled;
         # it is advised to adjust the framerate accordingly
-        #TODO:classify frames
-
-        '''
-        for i, image in enumerate(
-                camera.capture_continuous(
-                    rawCapture, format='bgr', use_video_port=True
-                )
-            ):
-
-            start = time.time()
-            # Get the numpy version of the image.
-            decoded_image = image.array
-        '''
 
         # Make the prediction. Big thanks to this SO answer:
         # http://stackoverflow.com/questions/34484148/feeding-image-data-in-tensorflow-for-transfer-learning
+        start = time.time()
         predictions = sess.run(self.softmax_tensor, {'DecodeJpeg:0': img})
         prediction = predictions[0]
 
@@ -63,7 +52,9 @@ class ViolenceDetector(picamera.array.PiRGBAnalysis):
         predicted_label = self.labels[max_index]
 
         end = time.time()
-        print("%s (%.2f%%) t:%.2f sec" % (predicted_label, max_value * 100, end-start))
+        self.prediction = ("%s (%.2f%%) t:%.2f sec" % (predicted_label, max_value * 100, end-start))
+        if predicted_label == 'violence'
+            self.detected = time.time()
 
 
 def get_labels():

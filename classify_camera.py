@@ -9,7 +9,7 @@ import tensorflow as tf
 import numpy as np
 from PIL import Image, ImageDraw
 
-FILE_PATTERN = 'violence%02d.mp4' # file pattern for recordings
+FILE_PATTERN = './vids/violence%02d.mp4' # file pattern for recordings
 FILE_BUFFER = 1048576               # size of file buffer (bytes)
 
 CAM_RESOLUTION = (640,480) # recording resoluition
@@ -23,8 +23,20 @@ class ViolenceDetector(picamera.array.PiRGBAnalysis):
         super(ViolenceDetector, self).__init__(camera, size)
         self.detected = 0
 
-    def analyse(self, a):
-        #completes the frame classification.
+    def initializeTF(labels):
+        self.labels = labels
+        with tf.gfile.FastGFile("./train/retrained_graph.pb", 'rb') as f:
+            self.graph_def = tf.GraphDef()
+            graph_def.ParseFromString(f.read())
+            _ = tf.import_graph_def(self.graph_def, name='')
+
+        with tf.Session() as sess:
+            self.softmax_tensor = sess.graph.get_tensor_by_name('final_result:0')
+
+    def analyse(self, img):
+        # Encoder callback that completes frame analysis.
+        # This must complete before next frame is pulled;
+        # it is advised to adjust the framerate accordingly
         #TODO:classify frames
 
         '''
@@ -37,21 +49,22 @@ class ViolenceDetector(picamera.array.PiRGBAnalysis):
             start = time.time()
             # Get the numpy version of the image.
             decoded_image = image.array
+        '''
 
         # Make the prediction. Big thanks to this SO answer:
         # http://stackoverflow.com/questions/34484148/feeding-image-data-in-tensorflow-for-transfer-learning
-        predictions = sess.run(softmax_tensor, {'DecodeJpeg:0': decoded_image})
+        predictions = sess.run(self.softmax_tensor, {'DecodeJpeg:0': img})
         prediction = predictions[0]
 
         # Get the highest confidence category.
         prediction = prediction.tolist()
         max_value = max(prediction)
         max_index = prediction.index(max_value)
-        predicted_label = labels[max_index]
+        predicted_label = self.labels[max_index]
 
         end = time.time()
         print("%s (%.2f%%) t:%.2f sec" % (predicted_label, max_value * 100, end-start))
-        '''
+
 
 def get_labels():
     """Get a list of labels so we can see if it's violent or not."""
@@ -79,8 +92,12 @@ def run_classification(labels):
         file_number = 1
         file_output = io.open(
             FILE_PATTERN % file_number, 'wb', buffering=FILE_BUFFER)
-        violence_detector = ViolenceDetector(camera)
 
+        print("Creating Detector Object...")
+        violence_detector = ViolenceDetector(camera)
+        violence_detector.initializeTF(labels)
+
+        '''
         # Unpersists graph from file
         print("Loading graph...")
         with tf.gfile.FastGFile("train/retrained_graph.pb", 'rb') as f:
@@ -91,7 +108,7 @@ def run_classification(labels):
         print("Creating TF Session...")
         with tf.Session() as sess:
             softmax_tensor = sess.graph.get_tensor_by_name('final_result:0')
-
+        '''
             print("Starting Camera...")
             camera.start_recording(
                 ring_buffer, format=CAM_FORMAT, bitrate=REC_BITRATE,

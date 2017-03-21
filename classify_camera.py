@@ -27,7 +27,7 @@ class ViolenceDetector(picamera.array.PiRGBAnalysis):
         self.labels = labels
         with tf.gfile.FastGFile("./train/retrained_graph.pb", 'rb') as f:
             self.graph_def = tf.GraphDef()
-            graph_def.ParseFromString(f.read())
+            self.graph_def.ParseFromString(f.read())
             _ = tf.import_graph_def(self.graph_def, name='')
 
         with tf.Session() as sess:
@@ -111,8 +111,8 @@ def run_classification(labels):
         '''
         print("Starting Camera...")
         camera.start_recording(
-            ring_buffer, format=CAM_FORMAT, bitrate=REC_BITRATE,
-            intra_period=REC_FRAMERATE)
+            ring_buffer, format=CAM_FORMAT, bitrate=CAM_BITRATE,
+            intra_period=CAM_FRAMERATE)
         try:
             while True:
                 print('Waiting for violence')

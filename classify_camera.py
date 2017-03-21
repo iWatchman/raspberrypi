@@ -150,8 +150,8 @@ def run_classification(labels):
                 file_output = io.open(
                     FILE_PATTERN % file_number, 'wb', buffering=FILE_BUFFER)
 
-            finally:
-                camera.stop_recording()
+        finally:
+            camera.stop_recording()
 
 if __name__ == '__main__':
     print("Starting up WATCHMAN")

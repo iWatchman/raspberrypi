@@ -22,6 +22,7 @@ class ViolenceDetector(picamera.array.PiRGBAnalysis):
     def __init__(self, camera, size=None):
         super(ViolenceDetector, self).__init__(camera, size)
         self.detected = 0
+        self.process_time = 0
         self.prediction = 'no predictions'
 
     def initializeTF(self, labels):
@@ -52,7 +53,8 @@ class ViolenceDetector(picamera.array.PiRGBAnalysis):
         predicted_label = self.labels[max_index]
 
         end = time.time()
-        self.prediction = ("%s (%.2f%%) t:%.2f sec" % (predicted_label, max_value * 100, end-start))
+        self.process_time = end-start
+        self.prediction = ("%s (%.2f%%) t:%.2f sec" % (predicted_label, max_value * 100, self.process_time))
         if predicted_label == 'violence':
             self.detected = time.time()
 
@@ -110,6 +112,7 @@ def run_classification(labels):
                 while violence_detector.detected < time.time() - 1:
                     camera.wait_recording(5)
                     print(violence_detector.prediction)
+                    print(violence_detector.process_time)
 
                 # Violence Detected Mode
                 print('Violence detected, recording to %s' % file_output.name)

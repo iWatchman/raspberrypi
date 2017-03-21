@@ -109,46 +109,46 @@ def run_classification(labels):
         with tf.Session() as sess:
             softmax_tensor = sess.graph.get_tensor_by_name('final_result:0')
         '''
-            print("Starting Camera...")
-            camera.start_recording(
-                ring_buffer, format=CAM_FORMAT, bitrate=REC_BITRATE,
-                intra_period=REC_FRAMERATE)
-            try:
-                while True:
-                    print('Waiting for violence')
-                    # wait recording, analyse gets called on each frame
-                    while violence_detector.detected < time.time() - 1:
-                        camera.wait_recording(1)
+        print("Starting Camera...")
+        camera.start_recording(
+            ring_buffer, format=CAM_FORMAT, bitrate=REC_BITRATE,
+            intra_period=REC_FRAMERATE)
+        try:
+            while True:
+                print('Waiting for violence')
+                # wait recording, analyse gets called on each frame
+                while violence_detector.detected < time.time() - 1:
+                    camera.wait_recording(1)
 
-                    # Violence Detected Mode
-                    print('Violence detected, recording to %s' % file_output.name)
-                    with ring_buffer.lock:
-                        for frame in ring_buffer.frames:
-                            if frame.frame_type == picamera.PiVideoFrameType.sps_header:
-                                ring_buffer.seek(frame.position)
-                                break
-                        while True:
-                            buf = ring_buffer.read1()
-                            if not buf:
-                                break
-                            file_output.write(buf)
-                    camera.split_recording(file_output)
-                    # Clear ring buffer by reconstructing it
-                    # TODO: add a clear() method later...
-                    ring_buffer = picamera.PiCameraCircularIO(
-                        camera, seconds=CAM_SECONDS, bitrate=CAM_BITRATE)
+                # Violence Detected Mode
+                print('Violence detected, recording to %s' % file_output.name)
+                with ring_buffer.lock:
+                    for frame in ring_buffer.frames:
+                        if frame.frame_type == picamera.PiVideoFrameType.sps_header:
+                            ring_buffer.seek(frame.position)
+                            break
+                    while True:
+                        buf = ring_buffer.read1()
+                        if not buf:
+                            break
+                        file_output.write(buf)
+                camera.split_recording(file_output)
+                # Clear ring buffer by reconstructing it
+                # TODO: add a clear() method later...
+                ring_buffer = picamera.PiCameraCircularIO(
+                    camera, seconds=CAM_SECONDS, bitrate=CAM_BITRATE)
 
-                    # Wait CAM_SECONDS without classification to refill buffer
-                    # TODO: setup some double-buffer system so this isn't necessary
-                    while violence_detector.detected > time.time() - CAM_SECONDS:
-                        camera.wait_recording(1)
+                # Wait CAM_SECONDS without classification to refill buffer
+                # TODO: setup some double-buffer system so this isn't necessary
+                while violence_detector.detected > time.time() - CAM_SECONDS:
+                    camera.wait_recording(1)
 
-                    # Reset back to Violence Not Detected mode
-                    camera.split_recording(ring_buffer)
-                    file_number += 1
-                    file_output.close()
-                    file_output = io.open(
-                        FILE_PATTERN % file_number, 'wb', buffering=FILE_BUFFER)
+                # Reset back to Violence Not Detected mode
+                camera.split_recording(ring_buffer)
+                file_number += 1
+                file_output.close()
+                file_output = io.open(
+                    FILE_PATTERN % file_number, 'wb', buffering=FILE_BUFFER)
 
             finally:
                 camera.stop_recording()

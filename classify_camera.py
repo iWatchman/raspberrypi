@@ -15,14 +15,14 @@ FILE_BUFFER = 1048576               # size of file buffer (bytes)
 CAM_RESOLUTION = (640,480) # recording resoluition
 CAM_FRAMERATE = 1         # recording framerate
 CAM_SECONDS = 10            # seconds stored in buffer
-CAM_BITRATE = 1000000       # bitrate for H.264 encoder
+CAM_BITRATE = 1000000       # bitrate for encoder
 CAM_FORMAT = 'bgr'         # format used to record
 
 class ViolenceDetector(picamera.array.PiRGBAnalysis):
     def __init__(self, camera, size=None):
         super(ViolenceDetector, self).__init__(camera, size)
         self.detected = 0
-        self.prediction = ''
+        self.prediction = 'no predictions'
 
     def initializeTF(self, labels):
         self.labels = labels

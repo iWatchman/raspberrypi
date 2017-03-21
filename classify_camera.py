@@ -64,18 +64,22 @@ def run_classification(labels):
             start = time.time()
             # Get the numpy version of the image.
             decoded_image = image.array
-            print(type(decoded_image))
+
             # Save image into ring buffer
             ringbuf.extend(decoded_image)
 
             test_iters += 1
-            if test_iters > 10:
+            if test_iters > 3:
                 st = time.time()
                 # Dump buffer into video file to send to server
                 print("Dumping buffer...")
                 buff = ringbuf.get()
+                print(type(buff))
+                print(buff.shape)
+                print(buff.dtype)
                 iters = 0
-                for dump_image in buff:
+
+                for dump_image in buff:                    
                     iters += 1
                     thing = Image.fromarray(dump_image, 'RGB')
                     thing.save("./imgs/img%s.png" % iters)

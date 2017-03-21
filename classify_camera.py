@@ -13,7 +13,7 @@ FILE_PATTERN = './vids/violence%02d.mp4' # file pattern for recordings
 FILE_BUFFER = 1048576               # size of file buffer (bytes)
 
 CAM_RESOLUTION = (640,480) # recording resoluition
-CAM_FRAMERATE = 2          # recording framerate
+CAM_FRAMERATE = 1         # recording framerate
 CAM_SECONDS = 10            # seconds stored in buffer
 CAM_BITRATE = 1000000       # bitrate for H.264 encoder
 CAM_FORMAT = 'bgr'         # format used to record
@@ -53,7 +53,7 @@ class ViolenceDetector(picamera.array.PiRGBAnalysis):
 
         end = time.time()
         self.prediction = ("%s (%.2f%%) t:%.2f sec" % (predicted_label, max_value * 100, end-start))
-        if predicted_label == 'violence'
+        if predicted_label == 'violence':
             self.detected = time.time()
 
 

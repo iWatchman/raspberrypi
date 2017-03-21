@@ -1,60 +1,33 @@
 '''
 
 '''
+import io
 import time
-from picamera import PiCamera
-from picamera.array import PiRGBArray
+import picamera
+import picamera.array
 import tensorflow as tf
-from my_ring_buf import RingBuffer
-import numpy
-from PIL import Image
+import numpy as np
+from PIL import Image, ImageDraw
 
-def get_labels():
-    """Get a list of labels so we can see if it's an ad or not."""
-    with open('train/retrained_labels.txt', 'r') as fin:
-        labels = [line.rstrip('\n') for line in fin]
-    return labels
+FILE_PATTERN = 'violence%02d.mp4' # file pattern for recordings
+FILE_BUFFER = 1048576               # size of file buffer (bytes)
 
-def array2PIL(arr, size):
-    mode = 'RGBA'
-    arr = arr.reshape(arr.shape[0]*arr.shape[1], arr.shape[2])
-    if len(arr[0]) == 3:
-        arr = numpy.c_[arr, 255*numpy.ones((len(arr),1), numpy.uint8)]
-    return Image.frombuffer(mode, size, arr.tostring(), 'raw', mode, 0, 1)
+CAM_RESOLUTION = (640,480) # recording resoluition
+CAM_FRAMERATE = 2          # recording framerate
+CAM_SECONDS = 10            # seconds stored in buffer
+CAM_BITRATE = 1000000       # bitrate for H.264 encoder
+CAM_FORMAT = 'bgr'         # format used to record
 
-def run_classification(labels):
-    """Stream images off the camera and process them."""
+class ViolenceDetector(picamera.array.PiRGBAnalysis):
+    def __init__(self, camera, size=None):
+        super(ViolenceDetector, self).__init__(camera, size)
+        self.detected = 0
 
-    print("Initializing camera...")
-    cam_width = 320
-    cam_height = 240
-    camera = PiCamera()
-    camera.resolution = (cam_width, cam_height)
-    camera.framerate = 2
-    rawCapture = PiRGBArray(camera, size=(cam_width, cam_height))
+    def analyse(self, a):
+        #completes the frame classification.
+        #TODO:classify frames
 
-    # Warmup...
-    print("Warming up camera...")
-    time.sleep(2)
-
-    # Create frame ring buffer for temporary image storage
-    print("Creating frame buffer...")
-    ringbuf = RingBuffer(300)
-
-    # Unpersists graph from file
-    print("Loading graph...")
-    with tf.gfile.FastGFile("train/retrained_graph.pb", 'rb') as f:
-        graph_def = tf.GraphDef()
-        graph_def.ParseFromString(f.read())
-        _ = tf.import_graph_def(graph_def, name='')
-
-    print("Creating TF Session...")
-    with tf.Session() as sess:
-        softmax_tensor = sess.graph.get_tensor_by_name('final_result:0')
-
-        print("Capturing images...")
-        # count num of images classified
-        test_iters = 0
+        '''
         for i, image in enumerate(
                 camera.capture_continuous(
                     rawCapture, format='bgr', use_video_port=True
@@ -65,44 +38,103 @@ def run_classification(labels):
             # Get the numpy version of the image.
             decoded_image = image.array
 
-            # Save image into ring buffer
-            ringbuf.extend(decoded_image)
+        # Make the prediction. Big thanks to this SO answer:
+        # http://stackoverflow.com/questions/34484148/feeding-image-data-in-tensorflow-for-transfer-learning
+        predictions = sess.run(softmax_tensor, {'DecodeJpeg:0': decoded_image})
+        prediction = predictions[0]
 
-            test_iters += 1
-            if test_iters > 3:
-                st = time.time()
-                # Dump buffer into video file to send to server
-                print("Dumping buffer...")
-                buff = ringbuf.get()
-                print(type(buff))
-                print(buff.shape)
-                print(buff.dtype)
-                iters = 0
+        # Get the highest confidence category.
+        prediction = prediction.tolist()
+        max_value = max(prediction)
+        max_index = prediction.index(max_value)
+        predicted_label = labels[max_index]
 
-                for dump_image in buff:                    
-                    iters += 1
-                    thing = Image.fromarray(dump_image, 'RGB')
-                    thing.save("./imgs/img%s.png" % iters)
-                #TODO: add code to stitch them here
-                en = time.time()
-                print("Saved files into video in %.2f sec" % (en - st))
+        end = time.time()
+        print("%s (%.2f%%) t:%.2f sec" % (predicted_label, max_value * 100, end-start))
+        '''
 
-            # Make the prediction. Big thanks to this SO answer:
-            # http://stackoverflow.com/questions/34484148/feeding-image-data-in-tensorflow-for-transfer-learning
-            predictions = sess.run(softmax_tensor, {'DecodeJpeg:0': decoded_image})
-            prediction = predictions[0]
+def get_labels():
+    """Get a list of labels so we can see if it's violent or not."""
+    with open('train/retrained_labels.txt', 'r') as fin:
+        labels = [line.rstrip('\n') for line in fin]
+    return labels
 
-            # Get the highest confidence category.
-            prediction = prediction.tolist()
-            max_value = max(prediction)
-            max_index = prediction.index(max_value)
-            predicted_label = labels[max_index]
 
-            end = time.time()
-            print("%s (%.2f%%) t:%.2f sec" % (predicted_label, max_value * 100, end-start))
+def run_classification(labels):
+    """Stream images off the camera and process them."""
 
-            # Reset the buffer so we're ready for the next one.
-            rawCapture.truncate(0)
+    print("Initializing camera...")
+    with picamera.PiCamera() as camera:
+        camera.resolution = CAM_RESOLUTION
+        camera.framerate = CAM_FRAMERATE
+        #rawCapture = PiRGBArray(camera, size=CAM_RESOLUTION)
+        time.sleep(2)
+
+        # Create frame ring buffer for temporary image storage
+        print("Creating buffers...")
+        #ringbuf = RingBuffer(300)
+        camera.start_preview()
+        ring_buffer = picamera.PiCameraCircularIO(
+            camera, seconds=CAM_SECONDS, bitrate=CAM_BITRATE)
+        file_number = 1
+        file_output = io.open(
+            FILE_PATTERN % file_number, 'wb', buffering=FILE_BUFFER)
+        violence_detector = ViolenceDetector(camera)
+
+        # Unpersists graph from file
+        print("Loading graph...")
+        with tf.gfile.FastGFile("train/retrained_graph.pb", 'rb') as f:
+            graph_def = tf.GraphDef()
+            graph_def.ParseFromString(f.read())
+            _ = tf.import_graph_def(graph_def, name='')
+
+        print("Creating TF Session...")
+        with tf.Session() as sess:
+            softmax_tensor = sess.graph.get_tensor_by_name('final_result:0')
+
+            print("Starting Camera...")
+            camera.start_recording(
+                ring_buffer, format=CAM_FORMAT, bitrate=REC_BITRATE,
+                intra_period=REC_FRAMERATE)
+            try:
+                while True:
+                    print('Waiting for violence')
+                    # wait recording, analyse gets called on each frame
+                    while violence_detector.detected < time.time() - 1:
+                        camera.wait_recording(1)
+
+                    # Violence Detected Mode
+                    print('Violence detected, recording to %s' % file_output.name)
+                    with ring_buffer.lock:
+                        for frame in ring_buffer.frames:
+                            if frame.frame_type == picamera.PiVideoFrameType.sps_header:
+                                ring_buffer.seek(frame.position)
+                                break
+                        while True:
+                            buf = ring_buffer.read1()
+                            if not buf:
+                                break
+                            file_output.write(buf)
+                    camera.split_recording(file_output)
+                    # Clear ring buffer by reconstructing it
+                    # TODO: add a clear() method later...
+                    ring_buffer = picamera.PiCameraCircularIO(
+                        camera, seconds=CAM_SECONDS, bitrate=CAM_BITRATE)
+
+                    # Wait CAM_SECONDS without classification to refill buffer
+                    # TODO: setup some double-buffer system so this isn't necessary
+                    while violence_detector.detected > time.time() - CAM_SECONDS:
+                        camera.wait_recording(1)
+
+                    # Reset back to Violence Not Detected mode
+                    camera.split_recording(ring_buffer)
+                    file_number += 1
+                    file_output.close()
+                    file_output = io.open(
+                        FILE_PATTERN % file_number, 'wb', buffering=FILE_BUFFER)
+
+            finally:
+                camera.stop_recording()
 
 if __name__ == '__main__':
     print("Starting up WATCHMAN")

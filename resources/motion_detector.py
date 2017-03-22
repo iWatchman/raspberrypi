@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 
-FILE_PATTERN = 'motion%02d.h264' # the file pattern in which to record videos
+FILE_PATTERN = './vids/motion%02d.h264' # the file pattern in which to record videos
 FILE_BUFFER = 1048576            # the size of the file buffer (bytes)
 
 REC_RESOLUTION = (1280, 720) # the recording resolution

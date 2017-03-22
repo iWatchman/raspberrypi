@@ -8,25 +8,60 @@ import picamera.array
 from picamera.array import PiRGBArray
 import tensorflow as tf
 import numpy as np
+import threading
+import requests
+import datetime
+from subprocess import call
 
 FILE_PATTERN = './vids/violence%02d.h264' # file pattern for recordings
-FILE_BUFFER = 1048576                    # size of file buffer (bytes)
+CONV_PATTERN = './vids/violence%02d.mp4'  # file patter to convert to
 
-CAM_RESOLUTION = (640,480)  # recording resoluition
-CAM_FRAMERATE = 24           # recording framerate
-CAM_SECONDS = 10            # seconds stored in buffer
+FILE_BUFFER = 1048576                     # size of file buffer (bytes)
+
+CAM_NAME = 'Camera 1'
+CAM_RESOLUTION = (640,480)  # recording resolution
+CAM_FRAMERATE = 24          # recording framerate
+CAM_SECONDS = 20            # seconds stored in buffer
 CAM_BITRATE = 1000000       # bitrate for encoder
 CAM_FORMAT = 'bgr'          # format used to record
 
+SERVER_ADDR = 'https://test-project-156600.appspot.com/api/reportEvent'
+
+def convert_push_file(file_number):
+    old_file = FILE_PATTERN % file_number
+    new_file = CONV_PATTERN % file_number
+    print("converting %s to %s..." % (old_file, new_file))
+    #do conversion
+
+    call(['MP4Box','-fps','%i'%CAM_FRAMERATE,'-add','%s'%old_file,'%s'%new_file])
+    push_file(new_file, file_number)
+
+def push_file(filename, file_number):
+    print("pushing %s..." % filename)
+
+    with open('%s' % filename, 'rb') as f:
+        bin_data = f.read()
+
+    now_date = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+
+    these_header = {'content-disposition': 'form-data'}
+    send_fname = 'violence%02d.mp4' % file_number
+    these_files = {'videoClip': (send_fname, bin_data, 'video/mp4')}
+
+    r = requests.post(
+        SERVER_ADDR,data={'date': now_date, 'cameraName': CAM_NAME},
+        headers = these_header,files=these_files)
+    print(r.status_code, r.reason)
+
 def get_labels():
-    """Get a list of labels so we can see if it's violent or not."""
+    'Get a list of labels so we can see if it is violent or not.'
     with open('train/retrained_labels.txt', 'r') as fin:
         labels = [line.rstrip('\n') for line in fin]
     return labels
 
 
 def run_classification(labels):
-    """Stream images off the camera and process them."""
+    'Stream images off the camera and process them.'
 
     print("Initializing camera...")
     with picamera.PiCamera() as camera:
@@ -52,7 +87,7 @@ def run_classification(labels):
 
         # Unpersists graph from file
         print("Loading graph...")
-        with tf.gfile.FastGFile("train/retrained_graph.pb", 'rb') as f:
+        with tf.gfile.FastGFile('train/retrained_graph.pb', 'rb') as f:
             graph_def = tf.GraphDef()
             graph_def.ParseFromString(f.read())
             _ = tf.import_graph_def(graph_def, name='')
@@ -65,6 +100,7 @@ def run_classification(labels):
             camera.start_recording(
                 ring_buffer, format='h264')
             try:
+                threads = []
                 while True:
                     print('Waiting for violence')
                     for i, image in enumerate(
@@ -95,6 +131,7 @@ def run_classification(labels):
 
                     # Violence Detected Mode
                     print('Violence detected, dumping to %s' % file_output.name)
+                    camera.wait_recording(5) # get 5 seconds after classification
                     with ring_buffer.lock:
                         for frame in ring_buffer.frames:
                             if frame.frame_type == picamera.PiVideoFrameType.sps_header:
@@ -107,15 +144,16 @@ def run_classification(labels):
                             file_output.write(buf)
                     camera.split_recording(file_output)
                     # Clear ring buffer by reconstructing it
-                    # TODO: add a clear() method later...
                     ring_buffer = picamera.PiCameraCircularIO(
                         camera, seconds=CAM_SECONDS, bitrate=CAM_BITRATE)
 
-                    # Wait CAM_SECONDS without classification to refill buffer
-                    # TODO: setup some double-buffer system so this isn't necessary
-                    check = time.time()
-                    while check > time.time() - CAM_SECONDS:
-                        camera.wait_recording(1)
+                    convert_push_file(file_number)
+                    '''
+                    t = threading.Thread(
+                        target=convert_push_file, args=(file_number,))
+                    threads.append(t)
+                    t.start()
+                    '''
 
                     # Reset back to Violence Not Detected mode
                     camera.split_recording(ring_buffer)
@@ -123,8 +161,10 @@ def run_classification(labels):
                     file_output.close()
                     file_output = io.open(
                         FILE_PATTERN % file_number, 'wb', buffering=FILE_BUFFER)
+
+
             except KeyboardInterrupt:
-                print('Keyboard Interrypt')
+                print("Keyboard Interrypt")
                 exit()
 
             finally:

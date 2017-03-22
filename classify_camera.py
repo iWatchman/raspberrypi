@@ -147,14 +147,13 @@ def run_classification(labels):
                     ring_buffer = picamera.PiCameraCircularIO(
                         camera, seconds=CAM_SECONDS, bitrate=CAM_BITRATE)
 
-                    convert_push_file(file_number)
-                    '''
+                    #convert_push_file(file_number)
+
                     t = threading.Thread(
                         target=convert_push_file, args=(file_number,))
                     threads.append(t)
                     t.start()
-                    '''
-
+                    
                     # Reset back to Violence Not Detected mode
                     camera.split_recording(ring_buffer)
                     file_number += 1

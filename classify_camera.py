@@ -46,7 +46,7 @@ def push_file(filename, file_number):
         bin_data = f.read()
 
     #now_date = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')
-    now_date = datetime.datetime.utcnow().isoformat()
+    now_date = datetime.datetime.utcnow().isoformat()[:-7] + 'Z'
 
     these_header = {'content-disposition': 'form-data'}
     send_fname = 'violence%02d.mp4' % file_number

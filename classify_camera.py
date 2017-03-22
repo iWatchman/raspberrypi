@@ -25,7 +25,9 @@ CAM_SECONDS = 20            # seconds stored in buffer
 CAM_BITRATE = 1000000       # bitrate for encoder
 CAM_FORMAT = 'bgr'          # format used to record
 
-SERVER_ADDR = 'https://test-project-156600.appspot.com/api/reportEvent'
+BASE_URL = 'http://104.196.62.42:8080'
+'https://test-project-156600.appspot.com'
+SERVER_ADDR = BASE_URL + '/api/reportEvent'
 
 def convert_push_file(file_number):
     old_file = FILE_PATTERN % file_number
@@ -101,8 +103,7 @@ def run_classification(labels):
                 ring_buffer, format='h264')
             try:
                 threads = []
-                while True:
-                    print('Waiting for violence')
+                while True:                    
                     for i, image in enumerate(
                             camera.capture_continuous(
                                 rawCapture, format='bgr', use_video_port=True
@@ -153,7 +154,7 @@ def run_classification(labels):
                         target=convert_push_file, args=(file_number,))
                     threads.append(t)
                     t.start()
-                    
+
                     # Reset back to Violence Not Detected mode
                     camera.split_recording(ring_buffer)
                     file_number += 1

@@ -12,6 +12,7 @@ import threading
 import requests
 import datetime
 from subprocess import call
+import glob
 
 FILE_PATTERN = './vids/violence%02d.h264' # file pattern for recordings
 CONV_PATTERN = './vids/violence%02d.mp4'  # file patter to convert to
@@ -44,7 +45,8 @@ def push_file(filename, file_number):
     with open('%s' % filename, 'rb') as f:
         bin_data = f.read()
 
-    now_date = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+    #now_date = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+    now_date = datetime.datetime.utcnow().isoformat()
 
     these_header = {'content-disposition': 'form-data'}
     send_fname = 'violence%02d.mp4' % file_number
@@ -103,7 +105,7 @@ def run_classification(labels):
                 ring_buffer, format='h264')
             try:
                 threads = []
-                while True:                    
+                while True:
                     for i, image in enumerate(
                             camera.capture_continuous(
                                 rawCapture, format='bgr', use_video_port=True
@@ -169,6 +171,9 @@ def run_classification(labels):
 
             finally:
                 camera.stop_recording()
+                print("Emptying vids directory...")
+                call(['rm'] + glob.glob('./vids/violence*'))
+                print("Done")
 
 if __name__ == '__main__':
     print("Starting up WATCHMAN")

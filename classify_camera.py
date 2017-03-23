@@ -18,11 +18,12 @@ FILE_PATTERN = './vids/violence%02d.h264' # file pattern for recordings
 CONV_PATTERN = './vids/violence%02d.mp4'  # file patter to convert to
 
 FILE_BUFFER = 1048576                     # size of file buffer (bytes)
+REQUIRED_VIOLENCE = 0.8
 
 CAM_NAME = 'Camera 1'
 CAM_RESOLUTION = (640,480)  # recording resolution
 CAM_FRAMERATE = 24          # recording framerate
-CAM_SECONDS = 20            # seconds stored in buffer
+CAM_SECONDS = 15            # seconds stored in buffer
 CAM_BITRATE = 1000000       # bitrate for encoder
 CAM_FORMAT = 'bgr'          # format used to record
 
@@ -129,7 +130,7 @@ def run_classification(labels):
 
                         # Reset the buffer so we're ready for the next one.
                         rawCapture.truncate(0)
-                        if predicted_label == 'violence' and max_value > 0.7:
+                        if predicted_label == 'violence' and max_value > REQUIRED_VIOLENCE:
                             break
 
                     # Violence Detected Mode
